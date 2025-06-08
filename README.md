@@ -7,15 +7,15 @@ The rise of global land surface temperatures due to climate change presents a cr
 2. Time series prediction via XGBoost to forecast temperatures in countries with distinct climate systems (e.g., Indonesia, Germany, Liberia, and the U.S.).
 
 # Methodology
-A. Data Preparation
-- Dataset: Contains 198,120 rows with columns such as Average Monthly Temperature, Yearly Temperature, Anomalies, Entity, and Continent.
+### A. Data Preparation
+- Dataset Contains 198,120 rows with columns such as Average Monthly Temperature, Yearly Temperature, Anomalies, Entity, and Continent.
 - Cleaning & Transformation:
   - Null values were dropped.
   - Label Encoding was applied to Entity and Continent.
   - Outliers (z-score > |3|) were removed.
   - Normality tests showed Temperature Anomaly as normally distributed; others were skewed.
 
-B. Data Visualization & EDA
+### B. Data Visualization & EDA
 - Pie charts revealed Africa as the most represented continent (29.9%).
 - Histograms showed temperature variations across continents.
 - Correlation matrix:
@@ -23,12 +23,12 @@ B. Data Visualization & EDA
   - Positive trend between year and anomaly values (r = 0.42).
 
 # Clustering Techniques
-K-Means Clustering
-- Initial Clustering (K=3):
+### K-Means Clustering
+- Initial Clustering (K=3)
   - Categories: Cold, Moderate, Hot.
   - Silhouette Score: 0.617
   - Hot clusters dominate Africa and Asia; Europe mostly Cold and Moderate.
-- Improved Clustering (K=2):
+- Improved Clustering (K=2)
   - Categories: Cold, Hot only.
   - Silhouette Score improved to 0.692, indicating better-defined clusters and less overlap.
   - Hot cluster dominated Africa, Asia, and America; Cold cluster dominated Europe.
@@ -50,10 +50,10 @@ Model Evaluation (Selected Countries):
 - Models for 2-season countries performed better overall.
 
 # Technologies and Tools
-- Language: Python
-- Libraries: Scikit-Learn, XGBoost, Pandas, NumPy
-- Visualization: Matplotlib, Seaborn
-- Platform: Jupyter Notebook
+- **Language :** Python
+- **Libraries :** Scikit-Learn, XGBoost, Pandas, NumPy
+- **Visualization :** Matplotlib, Seaborn
+- **Platform :** Jupyter Notebook
 
 # Conclusion
 K-Means clustering effectively identified meaningful global temperature categories, with K=2 giving the most compact results. The XGBoost model successfully predicted surface temperature trends, performing best in regions with simpler climatic patterns. Future work should include enhanced feature engineering, additional variables (e.g., elevation), and alternative models for comparative analysis.
