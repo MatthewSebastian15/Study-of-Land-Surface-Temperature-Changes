@@ -1,51 +1,58 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
+from model import predict_temperature
 
-# Path dataset
+# File CSV
 DATA_PATH = "data_average_surface_temperature.csv"
 
-# Judul aplikasi
+# Judul
 st.title("Surface Temperature Prediction: Historical and Future")
 
+# Load data
 @st.cache_data
 def load_data():
     df = pd.read_csv(DATA_PATH)
-    df.columns = df.columns.str.strip()  # Bersihkan spasi
-    # Buat kolom 'date' dari 'year' saja (karena tidak ada bulan)
-    df['date'] = pd.to_datetime(df['year'], format='%Y')
+    df['date'] = pd.to_datetime(df['year'].astype(str) + '-01-01')
     return df
 
-# Load data
 df = load_data()
 
-# Dropdown negara
-if 'Entity' in df.columns:
-    countries = df['Entity'].unique()
-    selected_country = st.selectbox("Pilih Negara", sorted(countries))
+# Prediksi suhu menggunakan model
+df = predict_temperature(df)
 
-    # Filter berdasarkan negara
-    country_data = df[df['Entity'] == selected_country]
+# Pilihan negara
+countries = df['Entity'].unique()
+selected_country = st.selectbox("Pilih Negara", sorted(countries))
 
-    # Plot
-    fig, ax = plt.subplots(figsize=(12, 6))
+# Filter negara
+country_data = df[df['Entity'] == selected_country]
 
-    # Data historis dan masa depan
-    historical = country_data[country_data['year'] < 2025]
-    future = country_data[country_data['year'] >= 2025]
+# Pisahkan data
+historical = country_data[country_data['year'] < 2025]
+forecast = country_data[country_data['year'] >= 2025]
 
-    # Plot temperatur aktual (gunakan rata-rata tahunan)
-    if 'Average surface temperature year' in df.columns:
-        ax.plot(historical['date'], historical['Average surface temperature year'], 'bo-', label='Avg Temp (Historis)')
-        if not future.empty:
-            ax.plot(future['date'], future['Average surface temperature year'], 'gD-', label='Avg Temp (Future)')
+# Checkbox untuk kontrol plot
+show_actual = st.checkbox("Tampilkan Data Aktual (2000–2024)", value=True)
+show_predicted = st.checkbox("Tampilkan Prediksi (2000–2024)", value=False)
+show_forecast = st.checkbox("Tampilkan Forecast Masa Depan (2025–2026)", value=False)
 
-    ax.set_title(f"Surface Temperature - {selected_country}")
-    ax.set_xlabel("Year")
-    ax.set_ylabel("Avg Surface Temp (°C)")
-    ax.legend()
-    ax.grid(True)
+# Plot
+fig, ax = plt.subplots(figsize=(12, 6))
 
-    st.pyplot(fig)
-else:
-    st.error("Kolom 'Entity' tidak ditemukan di dataset.")
+if show_actual:
+    ax.plot(historical['date'], historical['Average surface temperature year'], 'bo-', label='Actual Temperature (2000–2024)')
+
+if show_predicted and 'predicted_temp' in historical.columns:
+    ax.plot(historical['date'], historical['predicted_temp'], 'rx--', label='Predicted Temperature (2000–2024)')
+
+if show_forecast and not forecast.empty and 'future_predicted_temp' in forecast.columns:
+    ax.plot(forecast['date'], forecast['future_predicted_temp'], 'gD-', label='Future Predicted Temperature (2025–2026)')
+
+ax.set_title(f"Surface Temperature Prediction: Historical and Future ({selected_country})")
+ax.set_xlabel("Time")
+ax.set_ylabel("Surface Temperature (°C)")
+ax.legend()
+ax.grid(True)
+
+st.pyplot(fig)
