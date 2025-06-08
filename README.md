@@ -3,8 +3,8 @@ This study analyzes global land surface temperature changes using K-Means cluste
 
 # Introduction
 The rise of global land surface temperatures due to climate change presents a critical challenge. This research aims to uncover spatial and temporal patterns of temperature shifts from 1940 to 2024 using a dataset from Our World in Data. The approach involves two techniques:
-1. Clustering via K-Means to identify homogeneous temperature regions.
-2. Time series prediction via XGBoost to forecast temperatures in countries with distinct climate systems (e.g., Indonesia, Germany, Liberia, and the U.S.).
+- Clustering via K-Means to identify homogeneous temperature regions.
+- Time series prediction via XGBoost to forecast temperatures in countries with distinct climate systems (e.g., Indonesia, Germany, Liberia, and the U.S.).
 
 # Methodology
 ### A. Data Preparation
@@ -36,7 +36,7 @@ The rise of global land surface temperatures due to climate change presents a cr
 # Time Series Prediction with XGBoost
 XGBoost was used to forecast land surface temperature for 2025–2026, using historical monthly averages as training data. Evaluations were performed for countries with both tropical (2-season) and temperate (4-season) climates.
 
-Model Evaluation (Selected Countries):
+### Model Evaluation (Selected Countries)
 | Country   |  MAE  |  MSE  | RSME  | MAPE  |
 | --------- | ----- | ----- | ----- | ----- |
 | Indonesia | 0.151 | 0.035 | 0.189 | 0.006 |
