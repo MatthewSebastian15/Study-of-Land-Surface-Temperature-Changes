@@ -13,7 +13,8 @@ st.title("Surface Temperature Prediction: Historical and Future")
 @st.cache_data
 def load_data():
     df = pd.read_csv(DATA_PATH)
-    df.columns = df.columns.str.strip()
+    df.columns = df.columns.str.strip()  # Hilangkan spasi ekstra di nama kolom
+    df = df.dropna(subset=['Average surface temperature year'])  # Pastikan tidak ada NaN
     df['date'] = pd.to_datetime(df['year'].astype(str) + '-01-01')
     return df
 
@@ -24,18 +25,18 @@ countries = sorted(df['Entity'].unique())
 selected_country = st.selectbox("Pilih Negara", countries)
 
 # Filter berdasarkan negara
-country_data = df[df['Entity'] == selected_country]
+country_data = df[df['Entity'] == selected_country].copy()
 historical = country_data[country_data['year'] < 2025]
 
 # Prediksi forecast
-forecast_df = predict_temperature(country_data, 2025, 2026)
-forecast_df['date'] = pd.to_datetime(forecast_df['year'].astype(str) + '-01-01')
+forecast_df = predict_temperature(df, 2025, 2026)  # gunakan df, bukan hanya country_data
 forecast_df = forecast_df[forecast_df['Entity'] == selected_country]
+forecast_df['date'] = pd.to_datetime(forecast_df['year'].astype(str) + '-01-01')
 
 # Checkbox untuk grafik kiri
 show_predicted = st.checkbox("Tampilkan Predicted (2000–2024)", value=True)
 
-# Layout 2 kolom (kiri: actual/predicted, kanan: forecast)
+# Layout 2 kolom
 col1, col2 = st.columns(2)
 
 # Grafik kiri: Actual & Predicted
@@ -45,7 +46,7 @@ with col1:
 
     ax1.plot(historical['date'], historical['Average surface temperature year'], 'bo-', label='Actual Temperature')
 
-    if show_predicted:
+    if show_predicted and 'Temperature anomaly' in historical.columns:
         predicted = historical['Average surface temperature year'] + historical['Temperature anomaly']
         ax1.plot(historical['date'], predicted, 'rx--', label='Predicted Temperature')
 
