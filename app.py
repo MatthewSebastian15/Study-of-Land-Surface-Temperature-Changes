@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # Path ke file data Anda (ubah sesuai lokasi sebenarnya)
-DATA_PATH = "D:\KULIAH\GITHUB\Study of Land Surface Temperature Changes Clustering (k-Means) and Time Series Prediction (XGBoost)\data_average_surface_temperature.csv"
+DATA_PATH = "data_average_surface_temperature.csv"
 
 # Judul Aplikasi
 st.title("Surface Temperature Prediction: Historical and Future")
