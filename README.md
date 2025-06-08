@@ -37,17 +37,16 @@ The rise of global land surface temperatures due to climate change presents a cr
 XGBoost was used to forecast land surface temperature for 2025–2026, using historical monthly averages as training data. Evaluations were performed for countries with both tropical (2-season) and temperate (4-season) climates.
 
 Model Evaluation (Selected Countries):
+| Country   |  MAE  |  MSE  | RSME  | MAPE  |
+| --------- | ----- | ----- | ----- | ----- |
+| Indonesia | 0.151 | 0.035 | 0.189 | 0.006 |
+| Liberia   | 0.235 | 0.088 | 0.297 | 0.009 |
+| Germany   | 1.116 | 1.752 | 1.323 | 1.388 |
+| U.S.      | 0.634 | 0.649 | 0.805 | 2.774 |
 
-| Country   | MAE  | RMSE | MAPE  |
-| --------- | ---- | ---- | ----- |
-| Indonesia | 0.15 | 0.19 | 0.61% |
-| Liberia   | 0.23 | 0.30 | 0.94% |
-| Germany   | 1.11 | 1.32 | 1.39% |
-| U.S.      | 0.63 | 0.80 | 2.77% |
-
-- Indonesia showed the highest prediction accuracy.
-- Climate complexity in Germany led to greater prediction errors.
-- Models for 2-season countries performed better overall.
+- Indonesia showed the highest prediction accuracy
+- Climate complexity in Germany led to greater prediction errors
+- Models for 2-season countries performed better overall
 
 # Technologies and Tools
 - **Language :** Python
