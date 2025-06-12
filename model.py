@@ -1,77 +1,141 @@
 import pandas as pd
 import numpy as np
+from math import sqrt
+from datetime import datetime
 from xgboost import XGBRegressor
-from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
+from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import StandardScaler
 
-# Global encoders
-continent_encoder = LabelEncoder()
-entity_encoder = LabelEncoder()
+df = pd.read_csv("data_average_surface_temperature.csv")
+df = df.dropna()
+df = df[['Entity', 'year', 'Day', 'Average surface temperature month']]
+df['month'] = pd.to_datetime(df['Day']).dt.month
 
-def train_model(df):
-    # Clean the data
-    df = df[['Entity', 'Continent', 'year', 'Average surface temperature year']].dropna()
+def predict_temperature(entity_name):
+    df_entity = df[df['Entity'] == entity_name].copy()
+    df_entity = df_entity[['year', 'month', 'Average surface temperature month']]
+    df_entity.columns = ['year', 'month', 'temperature']
+    df_entity = df_entity.sort_values(['year', 'month']).reset_index(drop=True)
 
-    # Encode continent and entity
-    df['Continent_enc'] = continent_encoder.fit_transform(df['Continent'])
-    df['Entity_enc'] = entity_encoder.fit_transform(df['Entity'])
+    df_entity['sin_month'] = np.sin(2 * np.pi * df_entity['month'] / 12)
+    df_entity['cos_month'] = np.cos(2 * np.pi * df_entity['month'] / 12)
 
-    # Features and target
-    X = df[['Entity_enc', 'Continent_enc', 'year']]
-    y = df['Average surface temperature year']
+    annual_avg = df_entity.groupby('year')['temperature'].mean().reset_index()
+    reg = LinearRegression()
+    reg.fit(annual_avg[['year']], annual_avg['temperature'])
+    df_entity['avg_temp_year'] = reg.predict(df_entity[['year']])
 
-    # Train-test split
-    X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
+    df_entity['lag_1'] = df_entity['temperature'].shift(1)
+    df_entity['lag_12'] = df_entity['temperature'].shift(12)
+    df_entity['rolling_mean_3'] = df_entity['temperature'].rolling(window=3).mean()
+    df_entity['rolling_std_3'] = df_entity['temperature'].rolling(window=3).std()
+    df_entity['year_month'] = df_entity['year'] + (df_entity['month'] - 1) / 12
 
-    # XGBoost training
-    model = XGBRegressor(
-        n_estimators=300,
-        learning_rate=0.05,
-        max_depth=6,
-        subsample=0.8,
-        colsample_bytree=0.8,
-        random_state=42
+    df_entity = df_entity.dropna().reset_index(drop=True)
+
+    feature_cols = ['year', 'sin_month', 'cos_month', 'avg_temp_year','lag_1', 'lag_12', 'rolling_mean_3', 'rolling_std_3', 'year_month']
+    X = df_entity[feature_cols]
+    y = df_entity['temperature']
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
+
+    xgb_model = XGBRegressor(n_estimators=300, learning_rate=0.05, max_depth=3,subsample=0.7, colsample_bytree=0.7, gamma=0.2, random_state=42)
+    xgb_model.fit(X_train, y_train)
+
+    scaler = StandardScaler()
+    X_train_lin = scaler.fit_transform(X_train[['year']])
+    lin_model = LinearRegression()
+    lin_model.fit(X_train_lin, y_train)
+
+    y_pred_test = xgb_model.predict(X_test)
+    rmse = sqrt(mean_squared_error(y_test, y_pred_test))
+    print(f"RMSE for {entity_name}: {rmse:.2f} °C")
+
+    last_data = df_entity.copy()
+    predictions = []
+
+    start_date = datetime(2024, 7, 1)
+    end_date = datetime(2030, 12, 31)
+    current_date = start_date
+
+    temp_min = df_entity['temperature'].min()
+    temp_max = df_entity['temperature'].max()
+
+    while current_date <= end_date:
+        year = current_date.year
+        month = current_date.month
+        sin_month = np.sin(2 * np.pi * month / 12)
+        cos_month = np.cos(2 * np.pi * month / 12)
+        avg_temp_year = reg.predict([[year]])[0]
+        year_month = year + (month - 1) / 12
+        lag_1 = last_data.iloc[-1]['temperature']
+        lag_12 = last_data.iloc[-12]['temperature'] if len(last_data) >= 12 else lag_1
+        rolling_mean_3 = last_data['temperature'].tail(3).mean()
+        rolling_std_3 = last_data['temperature'].tail(3).std()
+
+        features = np.array([[year, sin_month, cos_month, avg_temp_year,lag_1, lag_12, rolling_mean_3, rolling_std_3, year_month]])
+        xgb_pred = xgb_model.predict(features)[0]
+
+        year_scaled = scaler.transform([[year]])[0][0]
+        lin_pred = lin_model.predict([[year_scaled]])[0]
+
+        recent_temp_var = last_data['temperature'].tail(12).var()
+        weight_xgb = min(0.9, max(0.5, recent_temp_var / 10))
+        weight_lin = 1 - weight_xgb
+
+        final_pred = weight_xgb * xgb_pred + weight_lin * lin_pred
+        final_pred = np.clip(final_pred, temp_min - 1, temp_max + 1)
+
+        new_row = {
+            'year': year,
+            'month': month,
+            'temperature': final_pred,
+            'sin_month': sin_month,
+            'cos_month': cos_month,
+            'avg_temp_year': avg_temp_year,
+            'lag_1': lag_1,
+            'lag_12': lag_12,
+            'rolling_mean_3': rolling_mean_3,
+            'rolling_std_3': rolling_std_3,
+            'year_month': year_month,
+            'type': 'Predicted'
+        }
+
+        predictions.append(new_row)
+        last_data = pd.concat([last_data, pd.DataFrame([new_row])], ignore_index=True)
+
+        if month == 12:
+            current_date = datetime(year + 1, 1, 1)
+        else:
+            current_date = datetime(year, month + 1, 1)
+
+    df_entity['type'] = 'Actual'
+    result_df = pd.concat(
+        [df_entity[['year', 'month', 'temperature', 'type']],
+         pd.DataFrame(predictions)[['year', 'month', 'temperature', 'type']]],
+        ignore_index=True
     )
 
-    model.fit(X_train, y_train)
+    return result_df
 
-    # Evaluation using manual RMSE calculation
-    y_pred = model.predict(X_val)
-    mse = mean_squared_error(y_val, y_pred)
-    rmse = np.sqrt(mse)
-    print(f"Validation RMSE: {rmse:.4f}")
+def classify_climate_zone(result_df, entity_name):
+    actual_df = result_df[result_df['type'] == 'Actual']
+    annual_avg = actual_df.groupby('year')['temperature'].mean()
+    overall_avg_temp = annual_avg.mean()
 
-    return model
+    if overall_avg_temp >= 20:
+        climate_type = "Tropical"
+    elif overall_avg_temp >= 10:
+        climate_type = "Subtropical"
+    elif overall_avg_temp >= 0:
+        climate_type = "Temperate"
+    else:
+        climate_type = "Pole"
 
-
-def predict_temperature(df, start_year=2025, end_year=2026):
-    model = train_model(df)
-
-    # Unique country/continent combinations
-    unique_entities = df[['Entity', 'Continent']].drop_duplicates()
-
-    forecast_rows = []
-    for _, row in unique_entities.iterrows():
-        entity = row['Entity']
-        continent = row['Continent']
-        for year in range(start_year, end_year + 1):
-            forecast_rows.append({
-                'Entity': entity,
-                'Continent': continent,
-                'year': year
-            })
-
-    forecast_df = pd.DataFrame(forecast_rows)
-
-    # Encode forecast data using previously fitted encoders
-    try:
-        forecast_df['Continent_enc'] = continent_encoder.transform(forecast_df['Continent'])
-        forecast_df['Entity_enc'] = entity_encoder.transform(forecast_df['Entity'])
-    except ValueError as e:
-        raise ValueError("Entity or Continent in forecast not seen in training data.") from e
-
-    X_forecast = forecast_df[['Entity_enc', 'Continent_enc', 'year']]
-    forecast_df['Forecast'] = model.predict(X_forecast)
-
-    return forecast_df[['Entity', 'Continent', 'year', 'Forecast']]
+    return {
+        "entity": entity_name,
+        "average_annual_temperature": round(overall_avg_temp, 2),
+        "climate_zone": climate_type
+    }
