@@ -6,3 +6,4 @@ seaborn
 plotly
 scikit-learn
 xgboost
+streamlit-js-eval
