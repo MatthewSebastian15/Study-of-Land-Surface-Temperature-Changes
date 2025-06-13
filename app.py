@@ -5,14 +5,13 @@ from model import predict_temperature, classify_climate_zone
 
 st.set_page_config(layout="wide", page_title="Surface Temperature Prediction 🌍")
 
-st.markdown(
-    "<h1 style='text-align: center; color: #00BFFF;'>🌡️ Surface Temperature Forecast</h1>",
-    unsafe_allow_html=True
-)
+st.markdown("<h1 style='text-align: center; color: #00BFFF;'>🌡️ Surface Temperature Forecast</h1>",unsafe_allow_html=True)
 
-df_all = pd.read_csv("data_average_surface_temperature.csv")
+# Load data
+df_all = pd.read_csv("dataset/data_average_surface_temperature.csv")
 entities = sorted(df_all['Entity'].dropna().unique())
 
+# Sidebar UI
 with st.sidebar:
     st.markdown("## 🌍 Select Country")
     default_index = entities.index("Indonesia") if "Indonesia" in entities else 0
@@ -20,94 +19,117 @@ with st.sidebar:
     display_actual = st.checkbox("📊 Show Historical Average (2000 – 2024)", value=True)
     display_predicted = st.checkbox("📈 Show Monthly Forecast (2025 – 2030)", value=True)
 
-result_df = predict_temperature(selected_entity)
-result_df['date'] = pd.to_datetime(result_df['year'].astype(str) + '-' + result_df['month'].astype(str))
-
+# Predict and preprocess
+data = predict_temperature(selected_entity)
+data['date'] = pd.to_datetime(data['year'].astype(str) + '-' + data['month'].astype(str) + '-01')
 plot_df = pd.DataFrame()
 
+# Actual data
 if display_actual:
-    actual_df = result_df[result_df['type'] == 'Actual']
-    actual_df = actual_df[(actual_df['date'] >= '1974-01-01') & (actual_df['date'] <= '2024-08-31')]
-    if not actual_df.empty:
-        date_filter = pd.date_range(start='1974-01-01', end='2024-08-01', freq='6MS')
-        monthly_actual = actual_df[actual_df['date'].isin(date_filter)]
-        monthly_actual = monthly_actual[['date', 'temperature', 'type']]
-        monthly_actual.rename(columns={'temperature': 'Temperature (°C)'}, inplace=True)
-        plot_df = pd.concat([plot_df, monthly_actual], ignore_index=True)
+    actual = data[(data['type'] == 'Actual') & (data['date'].between('1974-01-01', '2024-08-31'))]
+    actual = actual[actual['date'].dt.month.isin([1, 7])]
+    actual = actual[['date', 'temperature', 'type']].rename(columns={'temperature': 'Temperature (°C)'})
+    plot_df = pd.concat([plot_df, actual], ignore_index=True)
 
+# Predicted data
 if display_predicted:
-    result_df['date'] = pd.to_datetime(result_df['year'].astype(str) + '-' + result_df['month'].astype(str) + '-01')
-    predicted_df = result_df[(result_df['type'] == 'Predicted') & (result_df['date'].between('2024-07-01', '2030-12-31'))]
-    if not predicted_df.empty:
-        predicted_df = predicted_df[['date', 'temperature', 'type']]
-        predicted_df.rename(columns={'temperature': 'Temperature (°C)'}, inplace=True)
-        plot_df = pd.concat([plot_df, predicted_df], ignore_index=True)
+    predicted = data[(data['type'] == 'Predicted') & (data['date'].between('2024-07-01', '2030-12-31'))]
+    predicted = predicted[['date', 'temperature', 'type']].rename(columns={'temperature': 'Temperature (°C)'})
+    plot_df = pd.concat([plot_df, predicted], ignore_index=True)
 
+# Chart
 if not plot_df.empty:
     fig = px.line(
-        plot_df, x='date', y='Temperature (°C)',
-        color='type',
+        plot_df, x='date', y='Temperature (°C)', color='type',
         labels={'Temperature (°C)': 'Temperature (°C)', 'date': 'Date', 'type': 'Data type'},
         color_discrete_map={'Actual': '#00BFFF', 'Predicted': '#FF4500'},
-        title=f"📈 Average Surface Temperature & Predictions {selected_entity}",
+        title=f"📈 {selected_entity} Surface Temperature Overview"
     )
-
     fig.update_traces(
         hovertemplate='📅 %{x|%b %Y}<br>🌡️ %{y:.2f}°C<extra></extra>',
         line=dict(width=2, shape='spline')
     )
 
-    fig_width = 1400 if display_predicted and not display_actual else 1000
+    # X-axis tick handling
+    if display_actual and display_predicted:
+        x_start, x_end = pd.to_datetime("1974-01-01"), pd.to_datetime("2030-12-31")
+        tickvals = pd.date_range(x_start, x_end, freq='2YS')
+    elif display_predicted:
+        x_start, x_end = pd.to_datetime("2024-07-01"), pd.to_datetime("2030-12-31")
+        tickvals = pd.date_range(x_start, x_end, freq='MS')[::2]
+    else:
+        x_start, x_end = pd.to_datetime("1974-01-01"), pd.to_datetime("2025-01-01")
+        tickvals = pd.date_range(x_start, x_end, freq='2YS')
 
     fig.update_layout(
         template='plotly_dark',
         margin=dict(l=80, r=20, t=50, b=50),
         height=500,
-        width=fig_width,
+        width=1300,
         font=dict(family="Arial", size=14),
         title=dict(font=dict(size=22)),
-        legend=dict(font=dict(size=14), orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1)
+        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1)
     )
-
-    if display_predicted and not display_actual:
-        x_start, x_end = pd.to_datetime("2024-07-01"), pd.to_datetime("2030-12-31")
-        tickvals = pd.date_range(start=x_start, end=x_end, freq='MS')
-    elif display_actual and display_predicted:
-        x_start, x_end = pd.to_datetime("1974-01-01"), pd.to_datetime("2030-12-31")
-        tickvals = pd.date_range(start=f"{x_start.year}-01-01", end=f"{x_end.year}-12-01", freq='2YS')
-    else:
-        x_start, x_end = pd.to_datetime("1974-01-01"), pd.to_datetime("2025-01-01")
-        tickvals = pd.date_range(start=f"{x_start.year}-01-01", end=f"{x_end.year}-12-01", freq='2YS')
-
     fig.update_xaxes(
         range=[x_start, x_end],
-        tickvals=tickvals[::2] if display_predicted and not display_actual else tickvals,
+        tickvals=tickvals,
         tickformat="%b %Y" if display_predicted and not display_actual else "%Y",
         tickangle=45,
         tickfont=dict(size=11),
-        ticklabelmode='instant',
         automargin=True,
         gridcolor='gray',
         gridwidth=0.5
     )
+    st.plotly_chart(fig, use_container_width=True)
 
-    st.plotly_chart(fig, use_container_width=False)
-
+    # Climate Summary
     with st.expander("📌 Climate Classification Summary", expanded=True):
-        climate_info = classify_climate_zone(result_df, selected_entity)
-        st.markdown(
-            f"""
-            <div style='background-color:#002b36;padding:15px;border-radius:10px'>
-                <h4 style='color:#00BFFF'>🌡️ {climate_info['entity']} is included in the climate zone</h4>
-                <ul style='color:white;font-size:16px'>
-                    <li>Countries with <strong>{climate_info['climate_zone']}</strong> climates</li>
-                    <li><strong>Average Annual Temperature (2000–2024) : </strong> {climate_info['average_annual_temperature']} °C</li>
-                </ul>
-                <p style='font-size:14px;color:gray'>*Classification based on average annual temperature from historical data.</p>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+        climate_info = classify_climate_zone(data, selected_entity)
 
+        # Ambil nama benua
+        continent_name = df_all[df_all['Entity'] == selected_entity]['Continent'].dropna().unique()
+        continent_name = continent_name[0] if len(continent_name) > 0 else "Unknown"
+
+        # Hitung suhu rata-rata aktual dan prediksi
+        actual_avg = data[(data['type'] == 'Actual') & (data['year'].between(2000, 2024))]['temperature'].mean()
+        predicted_avg = data[(data['type'] == 'Predicted') & (data['year'].between(2025, 2030))]['temperature'].mean()
+
+        actual_avg_str = f"{actual_avg:.2f} °C" if not pd.isna(actual_avg) else "N/A"
+        predicted_avg_str = f"{predicted_avg:.2f} °C" if not pd.isna(predicted_avg) else "N/A"
+
+        # Hitung tren
+        if not pd.isna(actual_avg) and not pd.isna(predicted_avg):
+            delta = predicted_avg - actual_avg
+            delta_pct = (delta / actual_avg) * 100
+            if delta > 0:
+                trend_icon = "⬆"
+                trend_color = "#32CD32"  
+            elif delta < 0:
+                trend_icon = "⬇"
+                trend_color = "#FF6347"  
+            else:
+                trend_icon = "➖"
+                trend_color = "gray"
+            trend_text = f"<span style='color:{trend_color}'>{trend_icon} {delta:+.2f} °C ({delta_pct:+.1f}%)</span>"
+        else:
+            trend_text = "<span style='color:gray'>N/A</span>"
+
+        # Tampilkan ke UI
+        st.markdown(f"""
+            <div style='background-color:#001f3f;padding:20px;border-radius:12px;border: 1px solid #00BFFF'>
+                <h3 style='color:#00BFFF;text-align:center;'>🌍 {selected_entity} — Climate Overview</h3>
+                <hr style='border-top: 1px solid #00BFFF;'/>
+                <p style='color:white;font-size:16px'>
+                    <strong>🌐 Continent </strong> {continent_name}<br>
+                    <strong>🏜️ Climate Zone </strong> {climate_info['climate_zone']}<br>
+                </p>
+                <p style='color:white;font-size:16px'>
+                    <strong>📅 Historical Avg (2000–2024) </strong> {actual_avg_str}<br>
+                    <strong>🔮 Predicted Avg (2025–2030) </strong> {predicted_avg_str}<br>
+                    <strong>📈 Trend </strong> {trend_text}
+                </p>
+                <p style='font-size:13px;color:gray'>*Climate classification is based on long-term average surface temperatures</p>
+            </div>
+        """, unsafe_allow_html=True)
 else:
-    st.warning("⚠️ Charts are not available")
+    st.warning("⚠️ No data available to display the chart")
