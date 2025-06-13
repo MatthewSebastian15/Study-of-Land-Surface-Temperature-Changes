@@ -7,7 +7,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import StandardScaler
 
-df = pd.read_csv("data_average_surface_temperature.csv")
+df = pd.read_csv("dataset/data_average_surface_temperature.csv")
 df = df.dropna()
 df = df[['Entity', 'year', 'Day', 'Average surface temperature month']]
 df['month'] = pd.to_datetime(df['Day']).dt.month
