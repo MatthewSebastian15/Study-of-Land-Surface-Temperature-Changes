@@ -8,7 +8,7 @@ from model import predict_temperature, classify_climate_zone
 st.set_page_config(layout="wide", page_title="🌡️ Temperature Forecast")
 st.markdown("""<h1 style='text-align: center; color: #00BFFF;'>🌡️ Surface Temperature Forecast</h1>""", unsafe_allow_html=True)
 
-df_all = pd.read_csv("data_average_surface_temperature.csv")
+df_all = pd.read_csv("dataset/data_average_surface_temperature.csv")
 entities = sorted(df_all['Entity'].dropna().unique())
 
 st.markdown("---")
