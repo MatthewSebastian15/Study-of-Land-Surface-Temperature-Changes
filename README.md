@@ -1,4 +1,4 @@
-# Study of Land Surface Temperature Changes: Clustering (k-Means) and Time Series Prediction (XGBoost) 
+# Land Surface Temperature Changes Clustering (k-Means) and Time Series Prediction (XGBoost) 
 This study analyzes global land surface temperature changes using K-Means clustering and time series prediction using XGBoost. K-Means clustering was employed to classify global temperature data into distinct categories (cold, moderate, hot) based on monthly surface temperature values. The XGBoost model was used to forecast temperature trends from 2025 to 2026 in selected countries with different climatic patterns. Evaluation metrics including the Silhouette Score and various regression error metrics (MAE, MSE, RMSE, MAPE) were used to measure clustering quality and prediction accuracy.
 
 # Introduction
